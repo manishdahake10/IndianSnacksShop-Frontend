@@ -51,7 +51,7 @@ The project consists of the following files:
 
 ## Output
 You can view the template live here:
-[Indian Snacks Shop Web Template](dahakesfarashan.netlify.app)
+[Indian Snacks Shop Web Template](https://dahakesfarashan.netlify.app/)
 
 ## Contribution
 Feel free to fork this repository and contribute by opening issues or submitting pull requests. Contributions are welcome in the following areas:
