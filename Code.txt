@@ -1,0 +1,1235 @@
+My sql Database :
+-- Create the database
+CREATE DATABASE IF NOT EXISTS onlineshopingmart_db;
+USE onlineshopingmart_db;
+
+-- Admin table to manage admin information
+CREATE TABLE IF NOT EXISTS admin (
+    admin_id INT AUTO_INCREMENT PRIMARY KEY,
+    username VARCHAR(255) NOT NULL UNIQUE,
+    password_hash VARCHAR(255) NOT NULL,
+    email VARCHAR(255) NOT NULL UNIQUE,
+    full_name VARCHAR(255),
+    role ENUM('super_admin', 'product_manager', 'order_manager', 'support') DEFAULT 'super_admin',
+    phone VARCHAR(15),
+    profile_picture VARCHAR(255),
+    last_login TIMESTAMP DEFAULT NULL,
+    account_status ENUM('active', 'inactive', 'suspended') DEFAULT 'active',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+
+-- User Registration Table
+CREATE TABLE IF NOT EXISTS user_registration (
+    user_id INT AUTO_INCREMENT PRIMARY KEY,
+    first_name VARCHAR(100) NOT NULL,
+    last_name VARCHAR(100) NOT NULL,
+    mobile_no VARCHAR(15) NOT NULL UNIQUE,
+    email_id VARCHAR(100) NOT NULL UNIQUE,
+    password_hash VARCHAR(255) NOT NULL,
+    residential_address TEXT NOT NULL,
+    registered_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (email_id) REFERENCES users(email) ON DELETE CASCADE -- Link to the users table
+);
+
+-- User Login Table
+CREATE TABLE IF NOT EXISTS user_login (
+    login_id INT AUTO_INCREMENT PRIMARY KEY,
+    user_email VARCHAR(100) NOT NULL,
+    password VARCHAR(255) NOT NULL,
+    login_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_email) REFERENCES users(email) ON DELETE CASCADE -- Link to the users table
+);
+
+-- Password Reset Table
+CREATE TABLE IF NOT EXISTS password_reset (
+    reset_id INT AUTO_INCREMENT PRIMARY KEY,
+    user_email VARCHAR(100) NOT NULL,
+    new_password VARCHAR(255) NOT NULL,
+    retype_password VARCHAR(255) NOT NULL,
+    reset_requested_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_email) REFERENCES users(email) ON DELETE CASCADE -- Link to the users table
+);
+
+-- Product Categories Table
+CREATE TABLE IF NOT EXISTS product_categories (
+    category_id INT AUTO_INCREMENT PRIMARY KEY,
+    category_name VARCHAR(255) NOT NULL UNIQUE,
+    description TEXT,
+    parent_category_id INT DEFAULT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (parent_category_id) REFERENCES product_categories(category_id) ON DELETE SET NULL
+);
+
+-- Products Table
+CREATE TABLE IF NOT EXISTS products (
+    product_id INT AUTO_INCREMENT PRIMARY KEY,
+    product_name VARCHAR(255) NOT NULL,
+    description TEXT,
+    product_images VARCHAR(255),
+    price DECIMAL(10, 2) NOT NULL,
+    offer VARCHAR(100),
+    stock INT DEFAULT 0,
+    rating FLOAT CHECK (rating BETWEEN 0 AND 5),
+    category_id INT NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (category_id) REFERENCES product_categories(category_id) ON DELETE CASCADE
+);
+
+-- Cart Table
+CREATE TABLE IF NOT EXISTS cart (
+    cart_id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NOT NULL,
+    product_id INT NOT NULL,
+    quantity INT NOT NULL DEFAULT 1,
+    added_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES user_registration(user_id) ON DELETE CASCADE,
+    FOREIGN KEY (product_id) REFERENCES products(product_id) ON DELETE CASCADE
+);
+
+-- Website Banners Table
+CREATE TABLE IF NOT EXISTS banners (
+    banner_id INT AUTO_INCREMENT PRIMARY KEY,
+    banner_image VARCHAR(255) NOT NULL,
+    title VARCHAR(255),
+    description TEXT,
+    link_url VARCHAR(255),
+    active ENUM('yes', 'no') DEFAULT 'yes',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+
+-- Users Table (for general user info like email, name, etc.)
+CREATE TABLE IF NOT EXISTS users (
+    user_id INT AUTO_INCREMENT PRIMARY KEY,
+    first_name VARCHAR(100) NOT NULL,           -- User's first name
+    last_name VARCHAR(100) NOT NULL,            -- User's last name
+    email VARCHAR(100) NOT NULL UNIQUE,         -- User's email ID (unique)
+    mobile_no VARCHAR(15) NOT NULL UNIQUE,      -- User's mobile number (unique)
+    password_hash VARCHAR(255) NOT NULL,        -- User's hashed password
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, -- Account creation time
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP -- Account update time
+);
+
+========================================================================================================================================================================================
+package com.ts.Controller;
+
+import java.util.List;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+import com.ts.Model.Admin;
+import com.ts.Service.AdminService;
+
+@RestController
+@RequestMapping("/api/admin")
+public class AdminController {
+
+	@Autowired
+	private AdminService adminService;
+	
+	@GetMapping("/all")
+	public List<Admin> getAllAdmins() {
+        return adminService.getAllAdmins();
+    }
+	
+	@PostMapping("/create")
+	public AdminDTO createAdmin(AdminDTO adminDTO) {
+		return adminService.createAdmin(adminDTO);
+	}
+}
+
+==========================================================================================================================================================================
+
+package com.ts.Controller;
+
+import java.util.List;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+import com.ts.Model.Product;
+import com.ts.Service.ProductService;
+
+@RestController
+@RequestMapping("/api/Products")
+public class ProductController {
+
+	@Autowired
+	private ProductService productService;
+	
+	@GetMapping
+	 public List<Product> getAllProducts() {
+	        return productService.getAllProducts();
+	    }
+	
+	@PostMapping
+	public Product addProduct(@RequestBody Product product) {
+        return productService.addProduct(product);
+    }
+	
+	@DeleteMapping("{/id}")
+	public void deleteProduct (@PathVariable Long id) {
+		productService.deleteProduct(id);
+	}
+}
+
+==========================================================================================================================================================================
+
+package com.ts.Controller;
+
+import java.util.List;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+
+import com.ts.Service.UserService;
+
+@RestController
+@RequestMapping("/api/user")
+public class UserController {
+
+	@Autowired
+	private UserService userService;
+	
+	//Register user
+	@PostMapping("/register")
+	public List<UserDTO> registerUser(@RequestBody UserDTO userDTO){
+		return userService.resisterUser(userDTO);
+	}
+	
+	//Login user
+	@GetMapping("/login")
+	public String loginUser(@RequestParam String email, @RequestParam String Password) {
+		return userService.loginUser(email,Password);
+	}
+}
+
+=====================================================================================================================================
+package com.ts.DTO;
+
+import java.time.LocalDateTime;
+
+public class CartDTO {
+
+	private Long cartId;
+	private Long userId;
+	private Long productId;
+	private Integer quntity;
+	private LocalDateTime addedAt;
+	public Long getCartId() {
+		return cartId;
+	}
+	public void setCartId(Long cartId) {
+		this.cartId = cartId;
+	}
+	public Long getUserId() {
+		return userId;
+	}
+	public void setUserId(Long userId) {
+		this.userId = userId;
+	}
+	public Long getProductId() {
+		return productId;
+	}
+	public void setProductId(Long productId) {
+		this.productId = productId;
+	}
+	public Integer getQuntity() {
+		return quntity;
+	}
+	public void setQuntity(Integer quntity) {
+		this.quntity = quntity;
+	}
+	public LocalDateTime getAddedAt() {
+		return addedAt;
+	}
+	public void setAddedAt(LocalDateTime addedAt) {
+		this.addedAt = addedAt;
+	}
+	
+	public CartDTO() {}
+	public CartDTO(Long cartId, Long userId, Long productId, Integer quntity, LocalDateTime addedAt) {
+		
+		this.cartId = cartId;
+		this.userId = userId;
+		this.productId = productId;
+		this.quntity = quntity;
+		this.addedAt = addedAt;
+	}
+	
+}
+
+
+=============================================================================================================================================================
+package com.ts.DTO;
+
+import java.time.LocalDateTime;
+
+public class ProductDTO {
+
+	private Long productId;
+	private String productName;
+	private String discription;
+	private String productImage;
+	private double price;
+	private String offer;
+	private Integer stock;
+	private float rating;
+	private Long categeoryId;
+	private LocalDateTime createdAt;
+	private LocalDateTime updatedAt;
+	public Long getProductId() {
+		return productId;
+	}
+	public void setProductId(Long productId) {
+		this.productId = productId;
+	}
+	public String getProductName() {
+		return productName;
+	}
+	public void setProductName(String productName) {
+		this.productName = productName;
+	}
+	public String getDiscription() {
+		return discription;
+	}
+	public void setDiscription(String discription) {
+		this.discription = discription;
+	}
+	public String getProductImage() {
+		return productImage;
+	}
+	public void setProductImage(String productImage) {
+		this.productImage = productImage;
+	}
+	public double getPrice() {
+		return price;
+	}
+	public void setPrice(double price) {
+		this.price = price;
+	}
+	public String getOffer() {
+		return offer;
+	}
+	public void setOffer(String offer) {
+		this.offer = offer;
+	}
+	public Integer getStock() {
+		return stock;
+	}
+	public void setStock(Integer stock) {
+		this.stock = stock;
+	}
+	public float getRating() {
+		return rating;
+	}
+	public void setRating(float rating) {
+		this.rating = rating;
+	}
+	public Long getCategeoryId() {
+		return categeoryId;
+	}
+	public void setCategeoryId(Long categeoryId) {
+		this.categeoryId = categeoryId;
+	}
+	public LocalDateTime getCreatedAt() {
+		return createdAt;
+	}
+	public void setCreatedAt(LocalDateTime createdAt) {
+		this.createdAt = createdAt;
+	}
+	public LocalDateTime getUpdatedAt() {
+		return updatedAt;
+	}
+	public void setUpdatedAt(LocalDateTime updatedAt) {
+		this.updatedAt = updatedAt;
+	}
+	
+	public ProductDTO() {}
+	public ProductDTO(Long productId, String productName, String discription, String productImage, double price,
+			String offer, Integer stock, float rating, Long categeoryId, LocalDateTime createdAt,
+			LocalDateTime updatedAt) {
+		
+		this.productId = productId;
+		this.productName = productName;
+		this.discription = discription;
+		this.productImage = productImage;
+		this.price = price;
+		this.offer = offer;
+		this.stock = stock;
+		this.rating = rating;
+		this.categeoryId = categeoryId;
+		this.createdAt = createdAt;
+		this.updatedAt = updatedAt;
+	}
+	
+}
+=============================================================================================================================================================================
+
+package com.ts.DTO;
+
+public class UserDTO {
+
+	private Integer userId;
+	private String firstName;
+	private String lastName;
+	private String mobileNo;
+	private String emailId;
+	private String passwardHash;
+	private String residentialAddress;
+	public Integer getUserId() {
+		return userId;
+	}
+	public void setUserId(Integer userId) {
+		this.userId = userId;
+	}
+	public String getFirstName() {
+		return firstName;
+	}
+	public void setFirstName(String firstName) {
+		this.firstName = firstName;
+	}
+	public String getLastName() {
+		return lastName;
+	}
+	public void setLastName(String lastName) {
+		this.lastName = lastName;
+	}
+	public String getMobileNo() {
+		return mobileNo;
+	}
+	public void setMobileNo(String mobileNo) {
+		this.mobileNo = mobileNo;
+	}
+	public String getEmailId() {
+		return emailId;
+	}
+	public void setEmailId(String emailId) {
+		this.emailId = emailId;
+	}
+	public String getPasswardHash() {
+		return passwardHash;
+	}
+	public void setPasswardHash(String passwardHash) {
+		this.passwardHash = passwardHash;
+	}
+	public String getResidentialAddress() {
+		return residentialAddress;
+	}
+	public void setResidentialAddress(String residentialAddress) {
+		this.residentialAddress = residentialAddress;
+	}
+	
+	public UserDTO() {}
+	public UserDTO(Integer userId, String firstName, String lastName, String mobileNo, String emailId,
+			String passwardHash, String residentialAddress) {
+		
+		this.userId = userId;
+		this.firstName = firstName;
+		this.lastName = lastName;
+		this.mobileNo = mobileNo;
+		this.emailId = emailId;
+		this.passwardHash = passwardHash;
+		this.residentialAddress = residentialAddress;
+	}
+	
+	
+}
+========================================================================================================================================================================
+
+package com.ts.Model;
+
+import java.time.LocalDateTime;
+
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.Table;
+
+@Entity
+@Table(name ="admin")
+public class Admin {
+
+	@Id
+	@GeneratedValue(strategy = GenerationType.IDENTITY)
+	private long adminId;
+	
+	@Column(nullable = false, unique = true)
+	private String userName;
+	
+	@Column(nullable = false)
+	private String passwardHash;
+	
+	@Column(nullable = false, unique = true)
+	private String email;
+	
+	
+	private String fullName;
+	
+	@Enumerated(EnumType.STRING)
+	private Role role;
+	
+	private String mobileNo;
+	
+	private String profilePicture;
+	
+	private String accountStatus;
+	
+	@Column(nullable = false, updatable = false)
+	private LocalDateTime createdAt;
+	
+	private LocalDateTime updatedAt;
+	
+	public enum Role{
+		admin
+	}
+
+	public long getAdminId() {
+		return adminId;
+	}
+
+	public void setAdminId(long adminId) {
+		this.adminId = adminId;
+	}
+
+	public String getUserName() {
+		return userName;
+	}
+
+	public void setUserName(String userName) {
+		this.userName = userName;
+	}
+
+	public String getPasswardHash() {
+		return passwardHash;
+	}
+
+	public void setPasswardHash(String passwardHash) {
+		this.passwardHash = passwardHash;
+	}
+
+	public String getEmail() {
+		return email;
+	}
+
+	public void setEmail(String email) {
+		this.email = email;
+	}
+
+	public String getFullName() {
+		return fullName;
+	}
+
+	public void setFullName(String fullName) {
+		this.fullName = fullName;
+	}
+
+	public Role getRole() {
+		return role;
+	}
+
+	public void setRole(Role role) {
+		this.role = role;
+	}
+
+	public String getMobileNo() {
+		return mobileNo;
+	}
+
+	public void setMobileNo(String mobileNo) {
+		this.mobileNo = mobileNo;
+	}
+
+	public String getProfilePicture() {
+		return profilePicture;
+	}
+
+	public void setProfilePicture(String profilePicture) {
+		this.profilePicture = profilePicture;
+	}
+
+	public String getAccountStatus() {
+		return accountStatus;
+	}
+
+	public void setAccountStatus(String accountStatus) {
+		this.accountStatus = accountStatus;
+	}
+
+	public LocalDateTime getCreatedAt() {
+		return createdAt;
+	}
+
+	public void setCreatedAt(LocalDateTime createdAt) {
+		this.createdAt = createdAt;
+	}
+
+	public LocalDateTime getUpdatedAt() {
+		return updatedAt;
+	}
+
+	public void setUpdatedAt(LocalDateTime updatedAt) {
+		this.updatedAt = updatedAt;
+	}
+
+	public Admin() {}
+	public Admin(long adminId, String userName, String passwardHash, String email, String fullName, Role role,
+			String mobileNo, String profilePicture, String accountStatus, LocalDateTime createdAt,
+			LocalDateTime updatedAt) {
+		
+		this.adminId = adminId;
+		this.userName = userName;
+		this.passwardHash = passwardHash;
+		this.email = email;
+		this.fullName = fullName;
+		this.role = role;
+		this.mobileNo = mobileNo;
+		this.profilePicture = profilePicture;
+		this.accountStatus = accountStatus;
+		this.createdAt = createdAt;
+		this.updatedAt = updatedAt;
+	}
+	
+	
+	
+}
+==============================================================================================================================================================================
+package com.ts.Model;
+
+import java.time.LocalDateTime;
+
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.Table;
+
+@Entity
+@Table(name ="cart")
+public class Cart {
+
+	@Id
+	@GeneratedValue(strategy = GenerationType.IDENTITY)
+	private long cartId;
+	
+	@ManyToOne
+	@JoinColumn(name = "user_id", nullable = false)
+	private User user;
+	
+	@ManyToOne
+	@JoinColumn(name = "product_id", nullable = false)
+	private Product product;
+	
+	@Column(nullable = false)
+	private Integer quantity;
+	
+	@Column(nullable = false, updatable = false)
+	private LocalDateTime addedAt;
+
+	public long getCartId() {
+		return cartId;
+	}
+
+	public void setCartId(long cartId) {
+		this.cartId = cartId;
+	}
+
+	public User getUser() {
+		return user;
+	}
+
+	public void setUser(User user) {
+		this.user = user;
+	}
+
+	public Product getProduct() {
+		return product;
+	}
+
+	public void setProduct(Product product) {
+		this.product = product;
+	}
+
+	public Integer getQuantity() {
+		return quantity;
+	}
+
+	public void setQuantity(Integer quantity) {
+		this.quantity = quantity;
+	}
+
+	public LocalDateTime getAddedAt() {
+		return addedAt;
+	}
+
+	public void setAddedAt(LocalDateTime addedAt) {
+		this.addedAt = addedAt;
+	}
+
+	public Cart() {}
+	public Cart(long cartId, User user, Product product, Integer quantity, LocalDateTime addedAt) {
+		this.cartId = cartId;
+		this.user = user;
+		this.product = product;
+		this.quantity = quantity;
+		this.addedAt = addedAt;
+	}
+}
+========================================================================================================================================================================
+package com.ts.Model;
+
+import java.time.LocalDateTime;
+import java.util.List;
+
+import jakarta.persistence.CascadeType;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.OneToMany;
+import jakarta.persistence.Table;
+
+@Entity
+@Table(name ="product_categories")
+public class Category {
+
+	@Id
+	@GeneratedValue(strategy = GenerationType.IDENTITY)
+	private Long categoryId;
+	
+	private String categeoryName;
+	
+	private String discription;
+	
+	@ManyToOne
+	@JoinColumn(name = "parent_category_id")
+	private Category parentCategory;
+	
+	@OneToMany(mappedBy = "parentCategory", cascade = CascadeType.ALL)
+	private List<Category> subCategories;
+	
+	@Column(nullable = false, updatable = false)
+	private LocalDateTime createAt;
+	
+	private LocalDateTime updatable;
+
+	public Long getCategoryId() {
+		return categoryId;
+	}
+
+	public void setCategoryId(Long categoryId) {
+		this.categoryId = categoryId;
+	}
+
+	public String getCategeoryName() {
+		return categeoryName;
+	}
+
+	public void setCategeoryName(String categeoryName) {
+		this.categeoryName = categeoryName;
+	}
+
+	public String getDiscription() {
+		return discription;
+	}
+
+	public void setDiscription(String discription) {
+		this.discription = discription;
+	}
+
+	public Category getParentCategory() {
+		return parentCategory;
+	}
+
+	public void setParentCategory(Category parentCategory) {
+		this.parentCategory = parentCategory;
+	}
+
+	public List<Category> getSubCategories() {
+		return subCategories;
+	}
+
+	public void setSubCategories(List<Category> subCategories) {
+		this.subCategories = subCategories;
+	}
+
+	public LocalDateTime getCreateAt() {
+		return createAt;
+	}
+
+	public void setCreateAt(LocalDateTime createAt) {
+		this.createAt = createAt;
+	}
+
+	public LocalDateTime getUpdatable() {
+		return updatable;
+	}
+
+	public void setUpdatable(LocalDateTime updatable) {
+		this.updatable = updatable;
+	}
+
+	public Category() {}
+	public Category(Long categoryId, String categeoryName, String discription, Category parentCategory,
+			List<Category> subCategories, LocalDateTime createAt, LocalDateTime updatable) {
+	
+		this.categoryId = categoryId;
+		this.categeoryName = categeoryName;
+		this.discription = discription;
+		this.parentCategory = parentCategory;
+		this.subCategories = subCategories;
+		this.createAt = createAt;
+		this.updatable = updatable;
+	}
+}
+=================================================================================================================================
+package com.ts.Model;
+
+import jakarta.annotation.Generated;
+import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.Table;
+
+@Entity
+@Table(name = "Products")
+public class Product {
+	
+	@Id
+	@GeneratedValue(strategy = GenerationType.IDENTITY)
+	private Long id;
+	
+	private String name;
+	private String discription;
+	private double price;
+	private String imageurl;
+	private double rating;
+	public Long getId() {
+		return id;
+	}
+	public void setId(Long id) {
+		this.id = id;
+	}
+	public String getName() {
+		return name;
+	}
+	public void setName(String name) {
+		this.name = name;
+	}
+	public String getDiscription() {
+		return discription;
+	}
+	public void setDiscription(String discription) {
+		this.discription = discription;
+	}
+	public double getPrice() {
+		return price;
+	}
+	public void setPrice(double price) {
+		this.price = price;
+	}
+	public String getImageurl() {
+		return imageurl;
+	}
+	public void setImageurl(String imageurl) {
+		this.imageurl = imageurl;
+	}
+	public double getRating() {
+		return rating;
+	}
+	public void setRating(double rating) {
+		this.rating = rating;
+	}
+	
+	public Product() {}
+	public Product(Long id, String name, String discription, double price, String imageurl, double rating) {
+		
+		this.id = id;
+		this.name = name;
+		this.discription = discription;
+		this.price = price;
+		this.imageurl = imageurl;
+		this.rating = rating;
+	}
+	
+}
+=========================================================================================================================================
+package com.ts.Model;
+
+import java.time.LocalDateTime;
+
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.Id;
+import jakarta.persistence.Table;
+
+@Entity
+@Table(name = "user")
+public class User {
+
+	@Id
+	@Column(nullable = false)
+	private Long userId;
+	
+	@Column(nullable = false)
+	private String firstName;
+	
+	@Column(nullable = false)
+	private String lastName;
+	
+	@Column(nullable = false , unique = true)
+	private String mobileNo;
+	
+	@Column(nullable = false, unique = true)
+	private String emailId;
+	
+	@Column(nullable = false)
+	private String passwardHash;
+	
+	@Column(nullable = false)
+	private String residetialAddress;
+	
+	@Column(nullable = false, updatable = false)
+	private LocalDateTime createAt;
+	
+	private LocalDateTime updateAt;
+
+	public Long getUserId() {
+		return userId;
+	}
+
+	public void setUserId(Long userId) {
+		this.userId = userId;
+	}
+
+	public String getFirstName() {
+		return firstName;
+	}
+
+	public void setFirstName(String firstName) {
+		this.firstName = firstName;
+	}
+
+	public String getLastName() {
+		return lastName;
+	}
+
+	public void setLastName(String lastName) {
+		this.lastName = lastName;
+	}
+
+	public String getMobileNo() {
+		return mobileNo;
+	}
+
+	public void setMobileNo(String mobileNo) {
+		this.mobileNo = mobileNo;
+	}
+
+	public String getEmailId() {
+		return emailId;
+	}
+
+	public void setEmailId(String emailId) {
+		this.emailId = emailId;
+	}
+
+	public String getPasswardHash() {
+		return passwardHash;
+	}
+
+	public void setPasswardHash(String passwardHash) {
+		this.passwardHash = passwardHash;
+	}
+
+	public String getResidetialAddress() {
+		return residetialAddress;
+	}
+
+	public void setResidetialAddress(String residetialAddress) {
+		this.residetialAddress = residetialAddress;
+	}
+
+	public LocalDateTime getCreateAt() {
+		return createAt;
+	}
+
+	public void setCreateAt(LocalDateTime createAt) {
+		this.createAt = createAt;
+	}
+
+	public LocalDateTime getUpdateAt() {
+		return updateAt;
+	}
+
+	public void setUpdateAt(LocalDateTime updateAt) {
+		this.updateAt = updateAt;
+	}
+
+	public User() {}
+	public User(Long userId, String firstName, String lastName, String mobileNo, String emailId, String passwardHash,
+			String residetialAddress, LocalDateTime createAt, LocalDateTime updateAt) {
+		
+		this.userId = userId;
+		this.firstName = firstName;
+		this.lastName = lastName;
+		this.mobileNo = mobileNo;
+		this.emailId = emailId;
+		this.passwardHash = passwardHash;
+		this.residetialAddress = residetialAddress;
+		this.createAt = createAt;
+		this.updateAt = updateAt;
+	}
+
+	
+	
+}
+========================================================================================================================================================== 
+package com.ts.Repository;
+
+import java.util.Optional;
+
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.stereotype.Repository;
+
+import com.ts.Model.Admin;
+
+@Repository
+public interface AdminRepository extends JpaRepository<Admin, Long> {
+
+	Optional<Admin> findByUsername(String username);
+	Optional<Admin> findByEmail(String email);
+	
+}
+==========================================================================================================================================================
+package com.ts.Repository;
+
+import java.util.List;
+import java.util.Optional;
+
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.stereotype.Repository;
+
+import com.ts.Model.Cart;
+import com.ts.Model.Product;
+import com.ts.Model.User;
+
+@Repository
+public interface CartRepository extends JpaRepository<Cart, Long> {
+
+	List<Cart> findByUser(User user);
+	Optional<Cart> findByUserAndProduct(User user, Product product);
+	void deleteByUser(User user);
+}
+==========================================================================================================================================================
+package com.ts.Repository;
+
+import java.util.List;
+
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.stereotype.Repository;
+
+import com.ts.Model.Category;
+import com.ts.Model.Product;
+
+@Repository
+public interface ProductRepository extends JpaRepository<Product, Long>{
+
+	List<Product> findByCategory(Category category);
+	List<Product> findByProductNameContainingIgnoreCase(String productName);
+}
+==========================================================================================================================================================
+
+package com.ts.Repository;
+
+import java.util.Optional;
+
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.stereotype.Repository;
+
+import com.ts.Model.User;
+
+@Repository
+public interface UserRepository extends JpaRepository<User, Long> {
+
+	Optional<User> findByEmail(String email);
+	Optional<User> findByMobileNo(String mobileNo);
+}
+========================================================================================================================================================== 
+package com.ts.Service;
+
+import java.util.List;
+import java.util.stream.Collectors;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+
+import com.ts.DTO.ProductDTO;
+import com.ts.Model.Product;
+import com.ts.Repository.AdminRepository;
+import com.ts.Repository.ProductRepository;
+
+@Service
+public class AdminService {
+
+    @Autowired
+    private AdminRepository adminRepository;
+
+    @Autowired
+    private ProductRepository productRepository;
+
+    // Get All Products
+    public List<ProductDTO> getAllProducts() {
+        List<Product> products = productRepository.findAll();
+        return products.stream()
+                .map(this::convertToDTO)
+                .collect(Collectors.toList());
+    }
+
+    // Add a Product
+    public ProductDTO addProduct(ProductDTO productDTO) {
+        Product product = convertToEntity(productDTO);
+        Product savedProduct = productRepository.save(product);
+        return convertToDTO(savedProduct);
+    }
+
+    // Delete a Product
+    public void deleteProduct(Long id) {
+        productRepository.deleteById(id);
+    }
+
+    // Convert Product Entity to ProductDTO
+    private ProductDTO convertToDTO(Product product) {
+        return new ProductDTO(product.getId(), product.getName(), product.getDescription(), product.getPrice(), product.getImageUrl(), product.getRating());
+    }
+
+    // Convert ProductDTO to Product Entity
+    private Product convertToEntity(ProductDTO productDTO) {
+        return new Product(productDTO.getProductId(), productDTO.getProductName(), productDTO.getDescription(), productDTO.getPrice(), productDTO.getProductImage(), productDTO.getRating());
+    }
+}
+========================================================================================================================================================== 
+package com.ts.Service;
+
+import java.util.List;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+
+import com.ts.Model.Product;
+import com.ts.Repository.ProductRepository;
+
+@Service
+public class ProductService {
+
+	@Autowired
+	private ProductRepository productRepository;
+	
+	public List<Product> getAllProducts() {
+		return productRepository.findAll();
+	}
+	
+	public Product addProduct(Product product) {
+        return productRepository.save(product);
+    }
+	
+	public void deleteProduct(Long Id) {
+		productRepository.deleteById(Id);
+	}
+}
+==========================================================================================================================================================
+package com.ts.Service;
+
+import java.util.List;
+import java.util.stream.Collectors;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+
+import com.ts.DTO.UserDTO;
+import com.ts.Model.User;
+import com.ts.Repository.UserRepository;
+
+@Service
+public class UserService {
+
+    @Autowired
+    private UserRepository userRepository;
+
+    // Get All Users
+    public List<UserDTO> getAllUsers() {
+        List<User> users = userRepository.findAll();
+        return users.stream()
+                .map(this::convertToDTO)
+                .collect(Collectors.toList());
+    }
+
+    // Create a New User
+    public UserDTO createUser(UserDTO userDTO) {
+        User user = convertToEntity(userDTO);
+        User savedUser = userRepository.save(user);
+        return convertToDTO(savedUser);
+    }
+
+    // Update an Existing User
+    public UserDTO updateUser(Long id, UserDTO userDTO) {
+        User existingUser = userRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("User not found with id: " + id));
+
+        existingUser.setFirstName(userDTO.getFirstName());
+        existingUser.setEmailId(userDTO.getEmailId());
+        existingUser.setPasswardHash(userDTO.getPasswardHash());
+
+        User updatedUser = userRepository.save(existingUser);
+        return convertToDTO(updatedUser);
+    }
+
+    // Delete a User by ID
+    public void deleteUser(Long id) {
+        if (!userRepository.existsById(id)) {
+            throw new RuntimeException("User not found with id: " + id);
+        }
+        userRepository.deleteById(id);
+    }
+
+    // Convert User Entity to UserDTO
+    private UserDTO convertToDTO(User user) {
+        return new UserDTO(user.getUserId(), user.getFirstName(), user.getEmail(), user.getPasswardHash());
+    }
+
+    // Convert UserDTO to User Entity
+    private User convertToEntity(UserDTO userDTO) {
+        return new User(userDTO.getUserId(), userDTO.getFirstName(), userDTO.getEmailId(), userDTO.getPasswardHash());
+    }
+}
+
+
+This is my Backend Code plz Regenerate its and remove errors..
